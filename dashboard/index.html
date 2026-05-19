@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ynstaPanel</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header / Header Stats -->
+        <header class="header">
+            <div class="header-title">
+                <h1>ynstaPanel</h1>
+                <p>Gerenciamento de Seguidores <span id="last-sync-time" style="font-size: 11px; margin-left: 10px; color: var(--text-secondary);"></span></p>
+            </div>
+            
+            <div class="stats-container">
+                <div class="stat-card">
+                    <span class="stat-label">Seguidores</span>
+                    <span class="stat-value" id="followers-count">-</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">Seguindo</span>
+                    <span class="stat-value" id="following-count">-</span>
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 10px;">
+                <button id="settings-btn" class="btn" style="background: transparent; border: 1px solid var(--border-color); color: var(--text-secondary);">⚙️ API IA</button>
+                <button id="refresh-btn" class="btn primary-btn">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21v-5h5"/></svg>
+                    Sincronizar
+                </button>
+            </div>
+        </header>
+
+        <!-- Settings Modal -->
+        <div id="settings-modal" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 200; display: none; align-items: center; justify-content: center;">
+            <div class="loader-content" style="text-align: left; max-width: 500px;">
+                <h2>Configurações da IA</h2>
+                <p style="color: var(--text-secondary); margin-bottom: 20px; font-size: 13px;">Para usar a análise de perfil, insira sua chave do Google Gemini API.</p>
+                <input type="password" id="api-key-input" placeholder="Colar chave da API aqui..." style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-color); color: var(--text-primary); margin-bottom: 20px;">
+                <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                    <button class="btn action-btn" id="close-settings-btn" style="background: transparent; color: var(--text-primary); border: 1px solid var(--border-color);">Cancelar</button>
+                    <button class="btn action-btn primary-btn" id="save-settings-btn">Salvar</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Analysis Modal -->
+        <div id="analysis-modal" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 200; display: none; align-items: center; justify-content: center; padding: 20px;">
+            <div class="loader-content" style="text-align: left; width: 100%; max-width: 600px; max-height: 90vh; display: flex; flex-direction: column;">
+                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px; flex-shrink: 0;">
+                    <img id="ai-modal-avatar" src="" style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover; background: var(--border-color);">
+                    <div>
+                        <h2 id="ai-modal-username" style="margin: 0; font-size: 18px; color: var(--text-primary);">@username</h2>
+                        <span id="ai-modal-status" style="font-size: 12px; color: var(--pastel-blue-text);">Extraindo dados...</span>
+                    </div>
+                </div>
+                <div id="ai-modal-result" style="background: var(--bg-color); padding: 15px; border-radius: 8px; border: 1px solid var(--border-color); min-height: 100px; overflow-y: auto; font-size: 14px; line-height: 1.6; color: var(--text-primary); flex-grow: 1; white-space: pre-wrap;">
+                    <div class="spinner" style="width: 24px; height: 24px; border-width: 2px; margin: 20px auto;"></div>
+                </div>
+                <div style="display: flex; justify-content: flex-end; margin-top: 20px; flex-shrink: 0;">
+                    <button class="btn action-btn" id="close-analysis-btn" style="background: var(--surface-hover); color: var(--text-primary); border: none;">Fechar</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading overlay -->
+        <div id="loading-overlay" class="hidden">
+            <div class="loader-content">
+                <div class="spinner" id="loading-spinner"></div>
+                <h3 id="loading-status">Conectando ao Instagram...</h3>
+                <p id="loading-substatus" class="warning-text">Aguarde. Fazendo pausas de segurança para evitar bloqueios.</p>
+                <div class="progress-bar-container">
+                    <div class="progress-bar" id="progress-bar"></div>
+                </div>
+                <button id="cancel-queue-btn" class="btn danger-btn hidden" style="margin-top: 20px; width: 100%; justify-content: center;">Cancelar Fila</button>
+            </div>
+        </div>
+
+        <!-- Main Content (Columns) -->
+        <main class="main-content">
+            <div class="column">
+                <div class="column-header">
+                    <h2>Quem você segue</h2>
+                    <span class="badge gray-badge" id="following-list-count">0</span>
+                </div>
+                <div class="filter-bar">
+                    <button class="filter-btn active" data-target="all-following">Todos</button>
+                    <button class="filter-btn pastel-red-btn" data-target="not-following-back">Não te seguem de volta</button>
+                    <button class="filter-btn pastel-blue-btn" data-target="mutual-following">Seguem de volta</button>
+                </div>
+                <div class="action-bar hidden" id="following-action-bar">
+                    <div class="selection-info">
+                        <span id="following-selected-count">0</span> selecionados
+                    </div>
+                    <button class="btn action-btn danger-btn" id="btn-unfollow">Deixar de Seguir</button>
+                </div>
+                <div class="user-list" id="following-list">
+                    <!-- Items inserted via JS -->
+                    <div class="empty-state">Clique em Sincronizar para carregar.</div>
+                </div>
+            </div>
+
+            <div class="column">
+                <div class="column-header">
+                    <h2>Quem te segue</h2>
+                    <span class="badge gray-badge" id="followers-list-count">0</span>
+                </div>
+                <div class="filter-bar">
+                    <button class="filter-btn active" data-target="all-followers">Todos</button>
+                    <button class="filter-btn pastel-green-btn" data-target="fans">Fãs (Você não segue)</button>
+                    <button class="filter-btn pastel-blue-btn" data-target="mutual-followers">Você segue de volta</button>
+                </div>
+                <div class="action-bar hidden" id="followers-action-bar">
+                    <div class="selection-info">
+                        <span id="followers-selected-count">0</span> selecionados
+                    </div>
+                    <div class="action-buttons">
+                        <button class="btn action-btn success-btn" id="btn-follow-back">Seguir de Volta</button>
+                        <button class="btn action-btn danger-btn" id="btn-remove-follower">Remover Seguidor</button>
+                    </div>
+                </div>
+                <div class="user-list" id="followers-list">
+                    <!-- Items inserted via JS -->
+                    <div class="empty-state">Clique em Sincronizar para carregar.</div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="../scripts/instagram-api.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
